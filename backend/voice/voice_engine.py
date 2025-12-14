@@ -8,6 +8,7 @@ import speech_recognition as sr
 import numpy as np
 from pathlib import Path
 from typing import Optional
+from faster_whisper import WhisperModel
 
 try:
     from TTS.api import TTS
@@ -16,15 +17,11 @@ except ImportError:
     HAS_COQUI_TTS = False
 
 import pyttsx3
+import winsound
+from .piper_engine import PiperEngine
 
 # Sounddevice optional - only needed for Coqui TTS playback
 HAS_SOUNDDEVICE = False
-# try:
-#     import sounddevice as sd
-#     import soundfile as sf
-#     HAS_SOUNDDEVICE = True
-# except (ImportError, OSError, AttributeError):
-#     HAS_SOUNDDEVICE = False
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +40,17 @@ class VoiceEngine:
         self.recognizer.energy_threshold = speech_config.get('energy_threshold', 4000)
         self.recognizer.pause_threshold = speech_config.get('pause_threshold', 0.8)
         
+        # Initialize Faster-Whisper
+        logger.info("Initializing Faster-Whisper...")
+        try:
+            # device="auto" automatically selects CUDA if available, else CPU
+            self.whisper_model = WhisperModel("base.en", device="auto", compute_type="int8")
+            logger.info("Faster-Whisper initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to load Faster-Whisper: {e}")
+            # Fallback to CPU explicit if auto fails?
+            self.whisper_model = WhisperModel("base.en", device="cpu", compute_type="int8")
+        
         # Initialize Coqui TTS
         logger.info("Initializing Coqui TTS...")
         self.tts = None
@@ -59,6 +67,16 @@ class VoiceEngine:
     def _initialize_tts(self):
         """Initialize TTS engine"""
         try:
+            # Try Piper first
+            try:
+                self.piper = PiperEngine()
+                self.tts = self.piper # Assign to self.tts to satisfy availability check
+                self.tts_engine = 'piper'
+                logger.info("Piper TTS initialized successfully")
+                return
+            except Exception as e:
+                logger.warning(f"Piper TTS not available: {e}. Falling back...")
+
             if HAS_COQUI_TTS:
                 # Use Coqui TTS if available
                 self.tts = TTS(model_name="tts_models/en/vctk/vits", progress_bar=False)
@@ -142,6 +160,16 @@ class VoiceEngine:
                 self.tts.runAndWait()
                 return
             
+            if self.tts_engine == 'piper':
+                output_path = save_path or "temp_speech.wav"
+                if self.piper.synthesize(text, output_path):
+                    self._play_audio(output_path)
+                    # Cleanup
+                    if not save_path and os.path.exists(output_path):
+                        # Add small delay or wait for playback lock? winsound block waits
+                         os.remove(output_path)
+                return
+            
             # Use Coqui TTS
             if self.custom_voice_loaded and hasattr(self, 'speaker_wav'):
                 # Use cloned voice
@@ -173,18 +201,21 @@ class VoiceEngine:
     
     def _play_audio(self, audio_path: str):
         """Play audio file"""
-        if not HAS_SOUNDDEVICE:
-            logger.warning("Sounddevice not available, skipping audio playback")
-            return
-            
         try:
-            # These imports are only available if HAS_SOUNDDEVICE is True
-            import sounddevice as sd
-            import soundfile as sf
-            
-            data, samplerate = sf.read(audio_path)
-            sd.play(data, samplerate)
-            sd.wait()
+            if HAS_SOUNDDEVICE:
+                # These imports are only available if HAS_SOUNDDEVICE is True
+                import sounddevice as sd
+                import soundfile as sf
+                
+                data, samplerate = sf.read(audio_path)
+                sd.play(data, samplerate)
+                sd.wait()
+            else:
+                # Fallback to winsound
+                import winsound
+                # SND_FILENAME = 131072 (standard flag)
+                winsound.PlaySound(audio_path, winsound.SND_FILENAME)
+                
         except Exception as e:
             logger.error(f"Audio playback failed: {e}")
     
@@ -203,32 +234,31 @@ class VoiceEngine:
             
             with self.microphone as source:
                 logger.info("Listening...")
+                # Capture audio
                 audio = self.recognizer.listen(source, timeout=timeout, phrase_time_limit=10)
             
-            logger.info("Processing speech...")
+            logger.info("Processing speech with Faster-Whisper...")
             
-            # Use Google Speech Recognition (free)
-            engine = self.speech_config.get('engine', 'google')
-            language = self.speech_config.get('language', 'en-US')
-            
-            if engine == 'google':
-                text = self.recognizer.recognize_google(audio, language=language)
-            elif engine == 'sphinx':
-                text = self.recognizer.recognize_sphinx(audio)
-            else:
-                text = self.recognizer.recognize_google(audio, language=language)
+            # Save to temporary WAV file for Whisper
+            temp_wav = "temp_input.wav"
+            with open(temp_wav, "wb") as f:
+                f.write(audio.get_wav_data())
+                
+            try:
+                # Transcribe
+                segments, info = self.whisper_model.transcribe(temp_wav, beam_size=5)
+                text = " ".join([segment.text for segment in segments]).strip()
+                
+            finally:
+                # Cleanup
+                if os.path.exists(temp_wav):
+                    os.remove(temp_wav)
             
             logger.info(f"Recognized: {text}")
-            return text
+            return text if text else None
             
         except sr.WaitTimeoutError:
             logger.warning("Listening timeout - no speech detected")
-            return None
-        except sr.UnknownValueError:
-            logger.warning("Could not understand audio")
-            return None
-        except sr.RequestError as e:
-            logger.error(f"Speech recognition service error: {e}")
             return None
         except Exception as e:
             logger.error(f"Error during speech recognition: {e}")
