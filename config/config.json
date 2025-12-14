@@ -1,0 +1,65 @@
+{
+  "assistant_name": "ANNY",
+  "wake_word": null,
+  "security_mode": "trust",
+  "voice": {
+    "engine": "coqui",
+    "voice_model_path": "models/voice/custom_voice.pth",
+    "sample_rate": 22050,
+    "language": "en",
+    "speed": 1.0
+  },
+  "speech_recognition": {
+    "engine": "google",
+    "language": "en-US",
+    "energy_threshold": 4000,
+    "pause_threshold": 0.8,
+    "timeout": 5
+  },
+  "ai": {
+    "provider": "offline",
+    "model": "local",
+    "api_key": "",
+    "max_tokens": 500,
+    "temperature": 0.7,
+    "context_window": 10
+  },
+  "automation": {
+    "confirm_risky_commands": true,
+    "allowed_operations": [
+      "open_app",
+      "open_website",
+      "create_file",
+      "create_folder",
+      "search",
+      "volume_control",
+      "media_control"
+    ],
+    "restricted_operations": [
+      "delete_system_files",
+      "shutdown",
+      "restart",
+      "registry_edit"
+    ]
+  },
+  "ui": {
+    "theme": "dark",
+    "accent_color": "#00d4ff",
+    "window_size": {
+      "width": 1200,
+      "height": 800
+    },
+    "always_on_top": false,
+    "minimize_to_tray": true
+  },
+  "paths": {
+    "downloads": "C:\\Users\\User-1\\Downloads",
+    "documents": "C:\\Users\\User-1\\Documents",
+    "workspace": "d:\\whatever we make\\ASSISTANT OR PC AGENT"
+  },
+  "logging": {
+    "level": "INFO",
+    "file": "logs/jarvis.log",
+    "max_size_mb": 10
+  }
+}

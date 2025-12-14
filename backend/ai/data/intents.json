@@ -1,0 +1,284 @@
+{
+    "intents": [
+        {
+            "tag": "greeting",
+            "patterns": [
+                "Hi",
+                "Hello",
+                "Hey Anny",
+                "Are you there",
+                "Good morning",
+                "Wake up"
+            ],
+            "responses": [
+                "Hello!",
+                "I am here.",
+                "Ready to help.",
+                "Greetings."
+            ]
+        },
+        {
+            "tag": "lock_pc",
+            "patterns": [
+                "Lock pc",
+                "Lock the screen",
+                "Secure my computer",
+                "Lock it",
+                "Protect screen"
+            ],
+            "context_set": ""
+        },
+        {
+            "tag": "sleep_pc",
+            "patterns": [
+                "Sleep pc",
+                "Go to sleep",
+                "Suspend computer",
+                "Hibernate",
+                "Power saving mode"
+            ],
+            "context_set": ""
+        },
+        {
+            "tag": "open_chrome",
+            "patterns": [
+                "Open chrome",
+                "Launch browser",
+                "Start google chrome",
+                "Go online",
+                "Internet"
+            ],
+            "context_set": ""
+        },
+        {
+            "tag": "open_notepad",
+            "patterns": [
+                "Open notepad",
+                "Start text editor",
+                "New note",
+                "Launch notepad",
+                "Write something"
+            ],
+            "context_set": ""
+        },
+        {
+            "tag": "open_calculator",
+            "patterns": [
+                "Open calculator",
+                "Start calc",
+                "Calculator",
+                "Do some math"
+            ],
+            "context_set": ""
+        },
+        {
+            "tag": "check_battery",
+            "patterns": [
+                "Check battery",
+                "Battery level",
+                "How much power",
+                "Battery status",
+                "Power left"
+            ],
+            "context_set": ""
+        },
+        {
+            "tag": "stop",
+            "patterns": [
+                "Stop",
+                "Please and Thank you",
+                "Shutdown",
+                "Exit",
+                "Close Anny",
+                "Terminate",
+                "Shut up"
+            ],
+            "context_set": ""
+        },
+        {
+            "tag": "screenshot",
+            "patterns": [
+                "Take screenshot",
+                "Capture screen",
+                "Print screen",
+                "Save this screen",
+                "Snap screen"
+            ],
+            "context_set": ""
+        },
+        {
+            "tag": "volume_up",
+            "patterns": [
+                "Volume up",
+                "Louder",
+                "Increase volume",
+                "Turn it up",
+                "More sound"
+            ],
+            "context_set": ""
+        },
+        {
+            "tag": "volume_down",
+            "patterns": [
+                "Volume down",
+                "Quieter",
+                "Decrease volume",
+                "Turn it down",
+                "Less sound"
+            ],
+            "context_set": ""
+        },
+        {
+            "tag": "mute",
+            "patterns": [
+                "Mute",
+                "Silence",
+                "Turn off sound",
+                "Quiet"
+            ],
+            "context_set": ""
+        },
+        {
+            "tag": "unmute",
+            "patterns": [
+                "Unmute",
+                "Sound back",
+                "Turn on sound"
+            ],
+            "context_set": ""
+        },
+        {
+            "tag": "media_play_pause",
+            "patterns": [
+                "Play music",
+                "Pause music",
+                "Stop music",
+                "Resume",
+                "Play",
+                "Pause"
+            ],
+            "context_set": ""
+        },
+        {
+            "tag": "media_next",
+            "patterns": [
+                "Next song",
+                "Skip song",
+                "Next track",
+                "Forward"
+            ],
+            "context_set": ""
+        },
+        {
+            "tag": "empty_bin",
+            "patterns": [
+                "Empty recycle bin",
+                "Clear trash",
+                "Clean up trash",
+                "Empty bin",
+                "Delete trash"
+            ],
+            "context_set": ""
+        },
+        {
+            "tag": "time",
+            "patterns": [
+                "What time is it",
+                "Current time",
+                "Tell me the time",
+                "Clock"
+            ],
+            "context_set": ""
+        },
+        {
+            "tag": "date",
+            "patterns": [
+                "What is the date",
+                "Today's date",
+                "What day is it",
+                "Calendar"
+            ],
+            "context_set": ""
+        },
+        {
+            "tag": "search_google",
+            "patterns": [
+                "Search google",
+                "Google this",
+                "Look up",
+                "Find info on"
+            ],
+            "context_set": ""
+        },
+        {
+            "tag": "search_youtube",
+            "patterns": [
+                "Search youtube",
+                "Find video",
+                "Play on youtube",
+                "Youtube this"
+            ],
+            "context_set": ""
+        },
+        {
+            "tag": "timer",
+            "patterns": [
+                "Set a timer for 10 minutes",
+                "Start a countdown",
+                "Timer for 5 minutes",
+                "Count down from 1 minute",
+                "Let me know in 20 minutes"
+            ],
+            "context_set": ""
+        },
+        {
+            "tag": "alarm",
+            "patterns": [
+                "Set an alarm",
+                "Wake me up at 7am",
+                "Alarm for 8:00",
+                "Set alarm for tomorrow morning"
+            ],
+            "context_set": ""
+        },
+        {
+            "tag": "weather",
+            "patterns": [
+                "What's the weather",
+                "Is it raining",
+                "Weather report",
+                "Temperature outside",
+                "Do I need an umbrella",
+                "How is the weather in London"
+            ],
+            "context_set": ""
+        },
+        {
+            "tag": "file_move",
+            "patterns": [
+                "Move file to documents",
+                "Move all jpgs to pictures",
+                "Organize my downloads",
+                "Transfer this file to music folder",
+                "Put this in the videos folder",
+                "Move test.txt to Documents",
+                "Move item to folder",
+                "Move this to that",
+                "Transfer to",
+                "Move selection to"
+            ],
+            "context_set": ""
+        },
+        {
+            "tag": "complex_media",
+            "patterns": [
+                "Turn the volume up a little bit",
+                "Blast the music",
+                "Can you please turn it down",
+                "Make it louder",
+                "Play some relaxing music on spotify"
+            ],
+            "context_set": ""
+        }
+    ]
+}

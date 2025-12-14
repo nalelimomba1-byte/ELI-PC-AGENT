@@ -1,0 +1,47 @@
+# Core Dependencies
+flask==3.0.0
+flask-cors==4.0.0
+python-dotenv==1.0.0
+
+# Voice & Speech
+SpeechRecognition==3.10.0
+pyaudio==0.2.14
+pyttsx3==2.90
+TTS==0.21.3
+pydub==0.25.1
+pycaw==20230407
+sounddevice==0.4.6
+soundfile==0.12.1
+
+# AI & NLP
+openai==1.3.0
+anthropic==0.7.0
+google-generativeai==0.3.1
+nltk==3.8.1
+spacy==3.7.2
+
+# System Automation
+pyautogui==0.9.54
+psutil==5.9.6
+pywin32==306
+winshell==0.6
+
+# Web Automation
+selenium==4.15.2
+playwright==1.40.0
+requests==2.31.0
+beautifulsoup4==4.12.2
+
+# Task Management & Organization
+schedule==1.2.0
+python-dateutil==2.8.2
+icalendar==5.0.11
+
+# Database
+sqlalchemy==2.0.23
+alembic==1.13.0
+
+# Utilities
+colorama==0.4.6
+rich==13.7.0
+watchdog==3.0.0

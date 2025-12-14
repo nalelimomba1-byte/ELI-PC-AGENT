@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ANNY Control Panel</title>
+    <style>
+        /* ... styles ... */
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            width: 100%;
+            max-width: 600px;
+        }
+
+        .control-btn {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            color: #fff;
+            padding: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+            text-align: center;
+        }
+
+        .control-btn:hover {
+            background: #333;
+            border-color: #666;
+        }
+
+        .control-btn.danger {
+            border-color: #633;
+            color: #f88;
+        }
+
+        .control-btn.danger:hover {
+            background: #311;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- Particle Sphere -->
+        <div class="sphere-container">
+            <canvas id="particleCanvas" width="400" height="400"></canvas>
+        </div>
+
+        <!-- Status -->
+        <div class="status" id="status">ANNY Active. Click sphere to visualize voice.</div>
+
+        <!-- Input -->
+        <div class="input-area">
+            <input type="text" id="commandInput" placeholder="Command ANNY..."
+                onkeypress="if(event.key==='Enter') sendCommand()" autofocus>
+        </div>
+
+        <!-- Quick Controls -->
+        <div class="controls-grid">
+            <button class="control-btn" onclick="sendCommand('Lock PC')">🔒 Lock PC</button>
+            <button class="control-btn" onclick="sendCommand('Sleep PC')">💤 Sleep</button>
+            <button class="control-btn" onclick="sendCommand('Check Battery')">🔋 Battery</button>
+            <button class="control-btn" onclick="sendCommand('Take Screenshot')">📸 Screenshot</button>
+            <button class="control-btn" onclick="sendCommand('Open Chrome')">🌐 Chrome</button>
+            <button class="control-btn" onclick="sendCommand('Open Notepad')">📝 Notepad</button>
+            <button class="control-btn" onclick="sendCommand('Empty Recycle Bin')">🗑️ Empty Bin</button>
+            <button class="control-btn danger" onclick="sendCommand('Please and Thank You')">🛑 STOP ANNY</button>
+        </div>
+
+        <!-- Conversation -->
+        <div class="conversation" id="conversation"></div>
+    </div>
+
+    <script>
+        // Audio setup
+        let audioContext;
+        let analyser;
+        let microphone;
+        let dataArray;
+        let audioLevel = 0;
+        let isListening = false;
+
+        // Particle system - minimal white particles
+        const canvas = document.getElementById('particleCanvas');
+        const ctx = canvas.getContext('2d');
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+        const particles = [];
+        const particleCount = 60;
+        const radius = 120;
+        let time = 0;
+
+        class Particle {
+            constructor(index, total, radius) {
+                this.angle = (index / total) * Math.PI * 2;
+                this.baseRadius = radius;
+                this.radius = radius;
+                this.x = 0;
+                this.y = 0;
+                this.size = 2 + Math.random() * 1.5;
+                this.speed = 0.002 + Math.random() * 0.003;
+                this.offset = Math.random() * Math.PI * 2;
+                this.pulseSpeed = 0.03 + Math.random() * 0.02;
+                this.pulseOffset = Math.random() * Math.PI * 2;
+            }
+
+            update(time, audioLevel) {
+                this.angle += this.speed;
+                const pulse = Math.sin(time * this.pulseSpeed + this.pulseOffset) * 8;
+
+                // React to audio level
+                const audioReaction = audioLevel * 30;
+                this.radius = this.baseRadius + pulse + audioReaction;
+
+                this.x = Math.cos(this.angle) * this.radius;
+                this.y = Math.sin(this.angle) * this.radius;
+            }
+        }
+
+        // Initialize particles
+        for (let i = 0; i < particleCount; i++) {
+            particles.push(new Particle(i, particleCount, radius));
+        }
+
+        // Setup microphone
+        async function setupAudio() {
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 256;
+
+                const bufferLength = analyser.frequencyBinCount;
+                dataArray = new Uint8Array(bufferLength);
+
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                microphone = audioContext.createMediaStreamSource(stream);
+                microphone.connect(analyser);
+
+                isListening = true;
+                document.getElementById('status').textContent = 'Listening...';
+                document.getElementById('status').classList.add('listening');
+
+                updateAudioLevel();
+            } catch (error) {
+                console.error('Microphone access denied:', error);
+                document.getElementById('status').textContent = 'Microphone access denied';
+            }
+        }
+
+        // Update audio level from microphone
+        function updateAudioLevel() {
+            if (!isListening || !analyser) return;
+
+            analyser.getByteFrequencyData(dataArray);
+
+            // Calculate average volume
+            let sum = 0;
+            for (let i = 0; i < dataArray.length; i++) {
+                sum += dataArray[i];
+            }
+            const average = sum / dataArray.length;
+
+            // Normalize to 0-1 range and smooth it
+            audioLevel = audioLevel * 0.8 + (average / 255) * 0.2;
+
+            requestAnimationFrame(updateAudioLevel);
+        }
+
+        function animate() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            particles.forEach((particle, i) => {
+                particle.update(time, audioLevel);
+
+                const x = centerX + particle.x;
+                const y = centerY + particle.y;
+
+                // White particles - brighter when audio detected
+                const brightness = Math.min(255, 200 + audioLevel * 100);
+                const gradient = ctx.createRadialGradient(x, y, 0, x, y, particle.size);
+                gradient.addColorStop(0, `rgb(${brightness}, ${brightness}, ${brightness})`);
+                gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(x, y, particle.size, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Draw connections
+                particles.forEach((other, j) => {
+                    if (j <= i) return;
+
+                    const otherX = centerX + other.x;
+                    const otherY = centerY + other.y;
+                    const distance = Math.sqrt(Math.pow(x - otherX, 2) + Math.pow(y - otherY, 2));
+
+                    if (distance < 60) {
+                        const opacity = (1 - distance / 60) * 0.2 * (1 + audioLevel);
+                        ctx.strokeStyle = `rgba(255, 255, 255, ${opacity})`;
+                        ctx.lineWidth = 0.5;
+                        ctx.beginPath();
+                        ctx.moveTo(x, y);
+                        ctx.lineTo(otherX, otherY);
+                        ctx.stroke();
+                    }
+                });
+            });
+
+            // Center glow - reacts to audio
+            const glowSize = 15 + audioLevel * 40;
+            const glowGradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, glowSize);
+            const glowOpacity = 0.2 + audioLevel * 0.3;
+            glowGradient.addColorStop(0, `rgba(255, 255, 255, ${glowOpacity})`);
+            glowGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+            ctx.fillStyle = glowGradient;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, glowSize, 0, Math.PI * 2);
+            ctx.fill();
+
+            time += 0.1;
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+
+        // Conversation handling
+        function addMessage(role, content) {
+            const conversation = document.getElementById('conversation');
+            const message = document.createElement('div');
+            message.className = `message ${role}`;
+
+            message.innerHTML = `
+                <div class="message-label">${role === 'user' ? 'You' : 'ANNY'}</div>
+                <div class="message-content">${content}</div>
+            `;
+
+            conversation.appendChild(message);
+            conversation.scrollTop = conversation.scrollHeight;
+        }
+
+        // Command handling
+        async function sendCommand(commandText) {
+            const input = document.getElementById('commandInput');
+            const command = commandText || input.value.trim();
+
+            if (!command) return;
+
+            // Add user message
+            addMessage('user', command);
+            input.value = '';
+
+            try {
+                const response = await fetch('http://127.0.0.1:5000/command', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ command: command })
+                });
+
+                const data = await response.json();
+
+                // Add ELI response
+                addMessage('assistant', data.response || 'Command executed successfully');
+            } catch (error) {
+                addMessage('assistant', 'Error: Backend not running. Please start with: python start_eli.py');
+            }
+        }
+
+        // Click sphere to enable microphone
+        canvas.addEventListener('click', () => {
+            if (!isListening) {
+                setupAudio();
+            }
+        });
+    </script>
+</body>
+
+</html>

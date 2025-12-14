@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Node / Frontend
+node_modules/
+**/node_modules/
+frontend/dist/
+frontend/build/
+
+# Logs and Debug Output
+*.log
+backend.log
+crash_log.txt
+jarvis_debug.log
+brain_debug_out.txt
+test_output.txt
+error.txt
+npm-debug.log*
+
+# Environment
+.env
+
+# OS
+Thumbs.db
+Desktop.ini
