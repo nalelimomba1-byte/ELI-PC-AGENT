@@ -63,3 +63,31 @@ ASSISTANT OR PC AGENT/
 ├── start_eli.py              # Backend Launcher
 └── requirements.txt          # Python Dependencies
 ```
+
+# Migration to Free/Local Stack (Completed)
+
+## 🎯 Goal
+Eliminated reliance on paid APIs (Google Speech) and heavy frameworks (Electron) in favor of a privacy-focused, lightweight, and completely free local stack.
+
+## ✅ Phase 1: Voice Upgrade
+*   **STT (Ears)**: Replaced `SpeechRecognition` (Google API) with `Faster-Whisper` (Local).
+    *   Result: faster, offline, and more accurate transcription.
+*   **TTS (Mouth)**: Replaced `pyttsx3` (Robot voice) with `Piper TTS` (Neural voice).
+    *   Result: High-quality, natural-sounding voice (Amy-Medium model).
+
+## ✅ Phase 2: Intelligence Expansion
+*   **LLM (Brain)**: Integrated `Ollama` running the `phi3` model.
+    *   This provides a backup conversational layer when regex/neural net intents fail.
+*   **NLP Processor**: Updated to route complex queries to the local LLM.
+
+## ✅ Phase 3: UI Rewrite & Cleanup
+*   **Frontend**: Replaced the resource-heavy Electron/React app (~150MB RAM) with a native Python `CustomTkinter` UI (~20MB RAM).
+*   **Architecture**:
+    *   Removed `start_eli.py` (Flask Server) as it is no longer needed to bridge Python and JS.
+    *   Replaced `run_jarvis.py` with `launcher.py` as the SINGLE entry point.
+    *   Communication is now direct Python-to-Python (Threaded callbacks).
+
+## 🚀 Final Architecture
+*   **Launcher**: `launcher.py`
+*   **UI**: `desktop_ui/` (Python)
+*   **Core**: `backend/`

@@ -36,6 +36,8 @@ class EliCore:
         self.config = self._load_config(config_path)
         self.running = False
         self.command_queue = Queue()
+        self.ui_callbacks = []
+        self.status_callbacks = []
         
         # Initialize subsystems
         logger.info("Initializing ELI subsystems...")
@@ -50,6 +52,30 @@ class EliCore:
         
         logger.info("ELI initialized successfully")
     
+    def register_ui_callback(self, callback):
+        """Register callback for UI updates (chat)"""
+        self.ui_callbacks.append(callback)
+        
+    def register_status_callback(self, callback):
+        """Register callback for status updates"""
+        self.status_callbacks.append(callback)
+        
+    def _notify_ui(self, sender: str, message: str):
+        """Send message to all registered UI callbacks"""
+        for cb in self.ui_callbacks:
+            try:
+                cb(sender, message)
+            except Exception as e:
+                logger.error(f"UI Callback error: {e}")
+
+    def _update_status(self, status: str, color: str = "gray"):
+        """Send status update"""
+        for cb in self.status_callbacks:
+            try:
+                cb(status, color)
+            except Exception as e:
+                logger.error(f"Status Callback error: {e}")
+
     def _load_config(self, config_path: str) -> Dict[str, Any]:
         """Load configuration from JSON file"""
         try:
@@ -101,6 +127,8 @@ class EliCore:
                 
                 if command_text:
                     logger.info(f"Received command: {command_text}")
+                    self._notify_ui("User", command_text)
+                    self._update_status("Processing...", "yellow")
                     
                     # Check for STOP command
                     if "please and thank you" in command_text.lower():
@@ -157,7 +185,10 @@ class EliCore:
         """Main command processing loop"""
         logger.info("ELI is ready!")
         # Speak directly here is OK as it's main thread, but for consistency:
+        # Speak directly here is OK as it's main thread, but for consistency:
         self.voice_engine.speak("ELI online and ready to assist")
+        self._notify_ui("System", "ELI online and ready to assist")
+        self._update_status("Listening", "green")
         
         while self.running:
             try:
@@ -194,11 +225,15 @@ class EliCore:
             if result['success']:
                 response = result.get('message', 'Done')
                 logger.info(f"Command executed successfully: {response}")
+                self._notify_ui("System", response)
                 self.voice_engine.speak(response)
+                self._update_status("Listening", "green")
             else:
                 error_msg = result.get('error', 'Something went wrong')
                 logger.error(f"Command failed: {error_msg}")
+                self._notify_ui("System", f"Error: {error_msg}")
                 self.voice_engine.speak(f"Sorry, {error_msg}")
+                self._update_status("Error", "red")
                 
         except Exception as e:
             logger.error(f"Error processing command: {e}")
