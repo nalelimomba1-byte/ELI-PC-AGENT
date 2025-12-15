@@ -32,6 +32,10 @@ class NLPProcessor:
         # Initialize Fallback LLM (if configured)
         self.llm = LLMIntegration(ai_config)
         
+        # Context Management
+        self.context_history = []
+        self.max_context = ai_config.get('context_window', 5)
+        
         # Intent patterns (rule-based for common commands) - Kept for fallback
         self.intent_patterns = self._load_intent_patterns()
         

@@ -44,7 +44,7 @@ def main():
     
     # 4. Start Backend in Background Thread
     # EliCore should benefit from running its loops in a separate thread
-    backend_thread = threading.Thread(target=core.run, daemon=True)
+    backend_thread = threading.Thread(target=core.start, daemon=True)
     backend_thread.start()
     
     # 5. Start UI (Main Thread - Required for Tkinter)

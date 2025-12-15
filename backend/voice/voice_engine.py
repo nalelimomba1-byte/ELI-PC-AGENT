@@ -36,16 +36,21 @@ class VoiceEngine:
         self.recognizer = sr.Recognizer()
         self.microphone = sr.Microphone()
         
-        # Configure recognizer
-        self.recognizer.energy_threshold = speech_config.get('energy_threshold', 4000)
+        # Configure recognizer (High Sensitivity for Distance)
+        self.recognizer.energy_threshold = speech_config.get('energy_threshold', 200) # Ultra-sensitive
+        self.recognizer.dynamic_energy_threshold = True # Enable auto-gain to catch faint voices
+        self.recognizer.dynamic_energy_adjustment_damping = 0.15 # Less damping = faster adjustment
+        self.recognizer.dynamic_energy_ratio = 1.5
         self.recognizer.pause_threshold = speech_config.get('pause_threshold', 0.8)
         
         # Initialize Faster-Whisper
         logger.info("Initializing Faster-Whisper...")
         try:
-            # device="auto" automatically selects CUDA if available, else CPU
-            self.whisper_model = WhisperModel("base.en", device="auto", compute_type="int8")
-            logger.info("Faster-Whisper initialized successfully")
+            # Force CPU to avoid CUDA dependency crashes (missing dlls)
+            logger.info("Forcing CPU mode for stability (Base model with Beam=1)...")
+            # Using base.en with beam_size=1 offers best balance of speed/accuracy on CPU
+            self.whisper_model = WhisperModel("base.en", device="cpu", compute_type="int8")
+            logger.info("Faster-Whisper initialized successfully (CPU Mode - Base)")
         except Exception as e:
             logger.error(f"Failed to load Faster-Whisper: {e}")
             # Fallback to CPU explicit if auto fails?
@@ -202,7 +207,19 @@ class VoiceEngine:
     def _play_audio(self, audio_path: str):
         """Play audio file"""
         try:
+            if not os.path.exists(audio_path):
+                logger.error(f"Audio file not found: {audio_path}")
+                return
+                
+            file_size = os.path.getsize(audio_path)
+            if file_size == 0:
+                logger.error(f"Audio file is empty: {audio_path}")
+                return
+                
+            logger.info(f"Playing audio: {audio_path} ({file_size} bytes)")
+
             if HAS_SOUNDDEVICE:
+                logger.info("Using SoundDevice for playback")
                 # These imports are only available if HAS_SOUNDDEVICE is True
                 import sounddevice as sd
                 import soundfile as sf
@@ -210,11 +227,31 @@ class VoiceEngine:
                 data, samplerate = sf.read(audio_path)
                 sd.play(data, samplerate)
                 sd.wait()
+                
+                # Cooldown after SoundDevice
+                import time
+                time.sleep(1.0)
+                
             else:
-                # Fallback to winsound
+                logger.info("Using Winsound for playback")
                 import winsound
-                # SND_FILENAME = 131072 (standard flag)
-                winsound.PlaySound(audio_path, winsound.SND_FILENAME)
+                import wave
+                import time
+                
+                # Calculate duration manually to ensure we wait long enough
+                with wave.open(audio_path, 'rb') as wf:
+                    frames = wf.getnframes()
+                    rate = wf.getframerate()
+                    duration = frames / float(rate)
+                
+                logger.info(f"Audio Duration: {duration:.2f}s")
+                
+                # Play Async so we can sleep manually
+                winsound.PlaySound(audio_path, winsound.SND_FILENAME | winsound.SND_ASYNC)
+                
+                # Sleep exactly for duration (Minimal buffer for max responsiveness)
+                time.sleep(duration + 0.1)
+                logger.info("Playback complete. Listening immediately.")
                 
         except Exception as e:
             logger.error(f"Audio playback failed: {e}")
@@ -245,9 +282,42 @@ class VoiceEngine:
                 f.write(audio.get_wav_data())
                 
             try:
-                # Transcribe
-                segments, info = self.whisper_model.transcribe(temp_wav, beam_size=5)
+                # Transcribe with base.en (better accuracy) but beam_size=1 (speed)
+                try:
+                    segments, info = self.whisper_model.transcribe(temp_wav, beam_size=1)
+                except Exception as e:
+                    logger.warning(f"Whisper inference failed: {e}")
+                    # Retry once
+                    segments, info = self.whisper_model.transcribe(temp_wav, beam_size=1)
+                    
                 text = " ".join([segment.text for segment in segments]).strip()
+                
+                # Filter hallucinations (common in Whisper with noise/silence)
+                if not text or len(text) < 2 or text.replace('.', '').replace(' ', '') == '':
+                    return None
+                    
+                # Blacklist common Whisper hallucinations & Self-Hearing phrases
+                hallucinations = [
+                    "thank you", "thanks for watching", "subtitles by", "amara.org",
+                    "copyright", "all rights reserved", "you", "start conversation",
+                    "uncontrollable laughter", "silence", "bye",
+                    # Self-Hearing Phrases (Response overlaps)
+                    "anny is ready", "i'm sorry", "please provide", "eli online",
+                    "how can i assist", "i understand", "is there anything else"
+                ]
+                
+                text_lower = text.lower().strip()
+                
+                # Check for hallucinations
+                if any(h in text_lower for h in hallucinations):
+                    # Only filter if it's the ENTIRE phrase or very short
+                    if len(text_lower) < 20 or any(text_lower == h for h in hallucinations):
+                        logger.info(f"Filtered hallucination: {text}")
+                        return None
+
+                # Filter repetitive punctuation specifically
+                if " . ." in text or ". . ." in text:
+                    return None
                 
             finally:
                 # Cleanup
@@ -255,7 +325,7 @@ class VoiceEngine:
                     os.remove(temp_wav)
             
             logger.info(f"Recognized: {text}")
-            return text if text else None
+            return text
             
         except sr.WaitTimeoutError:
             logger.warning("Listening timeout - no speech detected")
