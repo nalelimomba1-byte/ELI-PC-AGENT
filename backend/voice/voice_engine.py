@@ -19,6 +19,8 @@ except ImportError:
 import pyttsx3
 import winsound
 from .piper_engine import PiperEngine
+from .kokoro_engine import KokoroEngine
+from .edge_engine import EdgeEngine
 
 # Sounddevice optional - only needed for Coqui TTS playback
 HAS_SOUNDDEVICE = False
@@ -72,7 +74,27 @@ class VoiceEngine:
     def _initialize_tts(self):
         """Initialize TTS engine"""
         try:
-            # Try Piper first
+            # Try Edge-TTS first (Microsoft Neural - Best Quality)
+            try:
+                self.edge = EdgeEngine(voice='en-US-AvaNeural')
+                self.tts = self.edge
+                self.tts_engine = 'edge'
+                logger.info("Edge-TTS initialized successfully")
+                return
+            except Exception as e:
+                logger.warning(f"Edge-TTS not available: {e}. Falling back...")
+
+            # Try Kokoro first (Human-like, 82M params)
+            try:
+                self.kokoro = KokoroEngine(voice='af_heart') # Use warm female voice
+                self.tts = self.kokoro
+                self.tts_engine = 'kokoro'
+                logger.info("Kokoro TTS initialized successfully")
+                return
+            except Exception as e:
+                logger.warning(f"Kokoro TTS not available: {e}. Falling back...")
+                
+            # Try Piper next
             try:
                 self.piper = PiperEngine()
                 self.tts = self.piper # Assign to self.tts to satisfy availability check
@@ -165,6 +187,23 @@ class VoiceEngine:
                 self.tts.runAndWait()
                 return
             
+            if self.tts_engine == 'edge':
+                output_path = save_path or "temp_speech.mp3"
+                if self.edge.synthesize(text, output_path):
+                    self._play_audio(output_path)
+                    if not save_path and os.path.exists(output_path):
+                         os.remove(output_path)
+                return
+
+            if self.tts_engine == 'kokoro':
+                output_path = save_path or "temp_speech.wav"
+                if self.kokoro.synthesize(text, output_path):
+                    self._play_audio(output_path)
+                    # Cleanup
+                    if not save_path and os.path.exists(output_path):
+                         os.remove(output_path)
+                return
+
             if self.tts_engine == 'piper':
                 output_path = save_path or "temp_speech.wav"
                 if self.piper.synthesize(text, output_path):
@@ -230,27 +269,30 @@ class VoiceEngine:
                 
                 # Cooldown after SoundDevice
                 import time
-                time.sleep(1.0)
+                time.sleep(0.1)
                 
             else:
-                logger.info("Using Winsound for playback")
-                import winsound
-                import wave
+                logger.info("Using Pygame for playback")
+                import pygame
                 import time
                 
-                # Calculate duration manually to ensure we wait long enough
-                with wave.open(audio_path, 'rb') as wf:
-                    frames = wf.getnframes()
-                    rate = wf.getframerate()
-                    duration = frames / float(rate)
+                # Initialize mixer if not already done
+                if not pygame.mixer.get_init():
+                    pygame.mixer.init()
                 
-                logger.info(f"Audio Duration: {duration:.2f}s")
+                # Load and play
+                pygame.mixer.music.load(audio_path)
+                pygame.mixer.music.play()
                 
-                # Play Async so we can sleep manually
-                winsound.PlaySound(audio_path, winsound.SND_FILENAME | winsound.SND_ASYNC)
+                # Wait for playback to finish (Blocking)
+                while pygame.mixer.music.get_busy():
+                    time.sleep(0.1)
                 
-                # Sleep exactly for duration (Minimal buffer for max responsiveness)
-                time.sleep(duration + 0.1)
+                # Unload to release file lock (important for deletion)
+                pygame.mixer.music.unload()
+                
+                # Minimal buffer for responsiveness
+                time.sleep(0.1)
                 logger.info("Playback complete. Listening immediately.")
                 
         except Exception as e:

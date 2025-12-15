@@ -280,7 +280,15 @@ class EliCore:
                 return {'success': True, 'message': response}
             
             else:
-                return {'success': False, 'error': "I don't know how to do that yet"}
+                # Fallback: If action is unknown (e.g., 'greeting', 'compliment'), send to LLM as query
+                logger.info(f"Unknown action '{action}', falling back to LLM query")
+                
+                # Construct a query from the raw text
+                intent['action'] = 'query'
+                intent['entities']['query'] = intent.get('raw_text', '')
+                
+                response = self.nlp_processor.generate_response(intent)
+                return {'success': True, 'message': response}
                 
         except Exception as e:
             logger.error(f"Error routing command: {e}")
