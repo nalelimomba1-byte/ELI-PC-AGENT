@@ -8,6 +8,7 @@ import speech_recognition as sr
 import numpy as np
 from pathlib import Path
 from typing import Optional
+import time
 from faster_whisper import WhisperModel
 
 try:
@@ -37,6 +38,9 @@ class VoiceEngine:
         self.speech_config = speech_config
         self.recognizer = sr.Recognizer()
         self.microphone = sr.Microphone()
+        
+        # State flags
+        self.is_speaking = False
         
         # Configure recognizer (High Sensitivity for Distance)
         self.recognizer.energy_threshold = speech_config.get('energy_threshold', 200) # Ultra-sensitive
@@ -175,6 +179,8 @@ class VoiceEngine:
             save_path: Optional path to save the audio file
         """
         try:
+            self.is_speaking = True
+            
             if not self.tts:
                 logger.warning("TTS not available, skipping speech")
                 return
@@ -242,6 +248,8 @@ class VoiceEngine:
                 
         except Exception as e:
             logger.error(f"Speech synthesis failed: {e}")
+        finally:
+            self.is_speaking = False
     
     def _play_audio(self, audio_path: str):
         """Play audio file"""
@@ -311,10 +319,19 @@ class VoiceEngine:
         try:
             timeout = timeout or self.speech_config.get('timeout', 5)
             
+            # Synchronization: Wait if currently speaking
+            while self.is_speaking:
+                time.sleep(0.1)
+                
             with self.microphone as source:
                 logger.info("Listening...")
                 # Capture audio
                 audio = self.recognizer.listen(source, timeout=timeout, phrase_time_limit=10)
+            
+            # Check overlap again - if speech started during listening, discard
+            if self.is_speaking:
+                logger.info("Speech overlapped with listening - discarding input")
+                return None
             
             logger.info("Processing speech with Faster-Whisper...")
             
